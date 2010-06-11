@@ -13,6 +13,9 @@ module NavigationTags
     *Attributes:*
     
     * @root@ defaults to "/", where to start building the navigation from, you can i.e. use "/products" to build a subnav
+    * @root_relative@ alternative way for specifying the root (replacing a given root value) by specifying the path
+      depth of the current page URL (e.g. the current page is '/aaa/bbb/ccc/ddd' and giving root_relative=2
+      would result in a root='/aaa/bbb/')
     * @include_root@ defaults to false, set to true to include the root page (i.e. Home)
     * @ids_for_lis@ defaults to false, enable this to give each li an id (it's slug prefixed with nav_)
     * @ids_for_links@ defaults to false, enable this to give each link an id (it's slug prefixed with nav_)
@@ -21,7 +24,7 @@ module NavigationTags
     * @expand_all@ defaults to false, enable this to have all li's create sub-ul's of their children, i.o. only the currently active li
     
     * @only@ a string or regular expresssion. only pages whose urls match this are included
-    * @except@ a string or regular expresssion. pages whose urls match this are not shown. except will override only. use to eliminate non-content file-types
+    * @except@ a string or regular expression. pages whose urls match this are not shown. except will override only. use to eliminate non-content file-types
     
     * @id@, @class@,..: go as html attributes of the outer ul
   }
@@ -29,6 +32,22 @@ module NavigationTags
   tag "nav" do |tag|
     root = Page.find_by_url(root_url = tag.attr.delete('root') || "/")
     
+    current_page = tag.locals.page
+    if tag.attr['root_relative']
+      root_relative = tag.attr['root_relative'].to_i
+    else 
+      root_relative = nil
+    end
+    if root_relative and root_relative>0
+      elems = current_page.url.split('/')
+      elems.shift # remove first empty list entry
+      if root_relative<=elems.length
+        path_elements = elems[0..root_relative-1]
+        new_root_url = '/' << (path_elements.join('/') << '/')
+        root = Page.find_by_url(root_url = new_root_url)
+      end
+    end
+        
     raise NavTagError, "No page found at \"#{root_url}\" to build navigation from." if root.class_name.eql?('FileNotFoundPage')
     
     depth = tag.attr.delete('depth') || 1
